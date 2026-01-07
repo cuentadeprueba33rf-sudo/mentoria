@@ -102,7 +102,8 @@ const fetchRecommendedBooks = async (): Promise<Book[]> => {
         }));
     } catch (e: any) {
         // Evitamos el [object Object] logueando el mensaje o stringificando
-        console.error("Error cargando libros recomendados:", e.message || JSON.stringify(e));
+        const errorMsg = e.message || JSON.stringify(e);
+        console.error("Error cargando libros recomendados:", errorMsg);
         return [];
     }
 }
@@ -279,10 +280,20 @@ export const Library: React.FC = () => {
 
       } catch (error: any) {
           console.error("Action Error:", error);
+          
           let msg = 'Error desconocido.';
-          if (error.message) {
+          const errorString = error?.message || error?.toString() || '';
+
+          // Handle specific "Failed to fetch" which often means project paused or CORS
+          if (errorString.includes('Failed to fetch')) {
+              msg = '⚠️ Error de conexión: No se pudo conectar con el servidor de Supabase.\n\nPosibles causas:\n1. El proyecto de Supabase está "Pausado" (Común en planes gratuitos tras inactividad).\n2. Problemas de conexión a internet.\n3. Bloqueador de anuncios interfiriendo.';
+          } else if (error.message) {
               msg = `Error: ${error.message}`;
+          } else {
+              // Fallback to avoid [object Object]
+              msg = `Error detallado: ${JSON.stringify(error)}`;
           }
+          
           alert(msg);
       } finally {
           setIsUploading(false);
@@ -301,7 +312,8 @@ export const Library: React.FC = () => {
           alert('Libro eliminado correctamente.');
       } catch (error: any) {
           console.error("Delete Error:", error);
-          alert(`Error al eliminar: ${error.message}`);
+          const msg = error.message || JSON.stringify(error);
+          alert(`Error al eliminar: ${msg}`);
       }
   };
 
@@ -497,7 +509,6 @@ export const Library: React.FC = () => {
           {/* 2. Upload/Edit Panel (Only Visible to Admin) */}
           {isAdmin && (
               <div className={`mb-6 p-6 rounded-2xl border animate-slide-up transition-colors duration-300 ${editingBook ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700' : 'bg-violet-50 dark:bg-violet-900/20 border-violet-200 dark:border-violet-700'}`}>
-                   {/* ... Upload Form remains same ... */}
                    <div className="flex justify-between items-center mb-4">
                       <h3 className={`font-bold flex items-center gap-2 ${editingBook ? 'text-amber-900 dark:text-amber-100' : 'text-violet-900 dark:text-violet-100'}`}>
                           {editingBook ? <><IconEdit className="w-5 h-5"/> Editando: {editingBook.title}</> : <><IconWand className="w-5 h-5"/> Panel de Carga (Admin)</>}
@@ -505,14 +516,14 @@ export const Library: React.FC = () => {
                       <button onClick={() => { setIsAdmin(false); setShowAdminLogin(false); }} className="text-xs text-violet-500 underline">Cerrar Sesión</button>
                   </div>
                   
-                  {/* Form simplified for brevity in this response, but fully functional in real code */}
+                  {/* Full Form */}
                    <form onSubmit={handleUploadOrUpdate} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <input 
                         type="text" 
                         placeholder="Título" 
                         value={uploadTitle}
                         onChange={e => setUploadTitle(e.target.value)}
-                        className="px-4 py-2 rounded-xl border-2 dark:bg-slate-900 outline-none"
+                        className="px-4 py-2 rounded-xl border-2 dark:bg-slate-900 outline-none focus:border-violet-500 dark:border-slate-600"
                         required
                       />
                       <input 
@@ -520,17 +531,91 @@ export const Library: React.FC = () => {
                         placeholder="Autor" 
                         value={uploadAuthor}
                         onChange={e => setUploadAuthor(e.target.value)}
-                        className="px-4 py-2 rounded-xl border-2 dark:bg-slate-900 outline-none"
+                        className="px-4 py-2 rounded-xl border-2 dark:bg-slate-900 outline-none focus:border-violet-500 dark:border-slate-600"
                         required
                       />
-                       {/* Other inputs remain... */}
-                      <button 
-                            type="submit" 
-                            disabled={isUploading}
-                            className={`w-full text-white py-3 rounded-xl font-bold shadow-lg md:col-span-2 ${editingBook ? 'bg-amber-500' : 'bg-violet-600'}`}
-                          >
-                              {isUploading ? 'Procesando...' : 'Guardar'}
-                          </button>
+
+                      {/* Category Selector */}
+                      <select
+                        value={uploadCategory}
+                        onChange={e => setUploadCategory(e.target.value)}
+                        className="px-4 py-2 rounded-xl border-2 dark:bg-slate-900 outline-none focus:border-violet-500 dark:border-slate-600"
+                      >
+                        {Object.values(SubjectCategory).map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                      </select>
+
+                      {/* Cover URL */}
+                      <input 
+                        type="text" 
+                        placeholder="URL Portada (Opcional)" 
+                        value={uploadCover}
+                        onChange={e => setUploadCover(e.target.value)}
+                        className="px-4 py-2 rounded-xl border-2 dark:bg-slate-900 outline-none focus:border-violet-500 dark:border-slate-600"
+                      />
+
+                      {/* Upload Mode Toggle */}
+                      <div className="md:col-span-2 bg-white dark:bg-slate-900 p-1 rounded-xl flex border border-slate-200 dark:border-slate-700">
+                           <button
+                               type="button"
+                               onClick={() => setUploadMode('url')}
+                               className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${uploadMode === 'url' ? 'bg-violet-100 text-violet-700 dark:bg-violet-900 dark:text-violet-300' : 'text-slate-500'}`}
+                           >
+                               🔗 Enlace Externo (Drive/Web)
+                           </button>
+                           <button
+                               type="button"
+                               onClick={() => setUploadMode('file')}
+                               className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${uploadMode === 'file' ? 'bg-violet-100 text-violet-700 dark:bg-violet-900 dark:text-violet-300' : 'text-slate-500'}`}
+                           >
+                               📂 Subir Archivo PDF
+                           </button>
+                      </div>
+
+                      {/* Dynamic Input based on Mode */}
+                      <div className="md:col-span-2">
+                          {uploadMode === 'url' ? (
+                              <input 
+                                type="text" 
+                                placeholder="Pegar enlace (Google Drive, Dropbox, etc)" 
+                                value={externalUrl}
+                                onChange={e => setExternalUrl(e.target.value)}
+                                className="w-full px-4 py-3 rounded-xl border-2 border-dashed border-violet-300 dark:border-violet-700 bg-white dark:bg-slate-900 outline-none focus:border-violet-500"
+                              />
+                          ) : (
+                               <input 
+                                type="file" 
+                                accept="application/pdf"
+                                onChange={e => setUploadFile(e.target.files ? e.target.files[0] : null)}
+                                className="w-full px-4 py-3 rounded-xl border-2 border-dashed border-violet-300 dark:border-violet-700 bg-white dark:bg-slate-900 outline-none file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100"
+                              />
+                          )}
+                          <p className="text-xs text-slate-500 mt-2 ml-1">
+                              {uploadMode === 'url' 
+                               ? 'Nota: Si usas Google Drive, asegúrate de que el acceso sea "Público". El sistema optimizará el enlace automáticamente.'
+                               : 'Límite: 50MB. Se subirá al servidor de MentorIA.'}
+                          </p>
+                      </div>
+
+                      <div className="md:col-span-2 flex gap-3 mt-2">
+                        {editingBook && (
+                             <button
+                                type="button"
+                                onClick={cancelEdit}
+                                className="flex-1 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 py-3 rounded-xl font-bold hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                             >
+                                 Cancelar
+                             </button>
+                        )}
+                        <button 
+                                type="submit" 
+                                disabled={isUploading}
+                                className={`flex-1 text-white py-3 rounded-xl font-bold shadow-lg transition-transform active:scale-95 ${editingBook ? 'bg-amber-500 hover:bg-amber-600' : 'bg-violet-600 hover:bg-violet-700'}`}
+                              >
+                                  {isUploading ? 'Procesando...' : (editingBook ? 'Actualizar Libro' : 'Guardar Libro')}
+                              </button>
+                      </div>
                    </form>
               </div>
           )}
@@ -627,6 +712,26 @@ export const Library: React.FC = () => {
                                 <IconBook className="w-3 h-3" />
                                 {book.canEmbed ? 'Leer' : 'Ver'}
                             </button>
+                            
+                            {/* ADMIN CONTROLS IN CARD */}
+                            {isAdmin && book.source === 'mentor_ia' && (
+                                <div className="flex gap-2 mt-2 pt-2 border-t border-slate-100 dark:border-slate-700">
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); handleEditClick(book); }}
+                                        className="flex-1 py-1.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 rounded-lg text-[10px] font-bold flex items-center justify-center hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors"
+                                        title="Editar"
+                                    >
+                                        <IconEdit className="w-3 h-3" />
+                                    </button>
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); handleDeleteBook(book); }}
+                                        className="flex-1 py-1.5 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 rounded-lg text-[10px] font-bold flex items-center justify-center hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+                                        title="Eliminar"
+                                    >
+                                        <IconTrash className="w-3 h-3" />
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

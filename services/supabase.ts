@@ -82,7 +82,7 @@ export const uploadBookFile = async (file: File): Promise<string | null> => {
         }
         
         console.error('Error detallado de Supabase Storage:', uploadError);
-        throw new Error(uploadError.message);
+        throw new Error(uploadError.message || JSON.stringify(uploadError));
     }
 
     if (!data) {
@@ -122,7 +122,8 @@ export const addBookToDatabase = async (bookData: {
   
   if (error) {
       console.error("Database Insert Error:", error);
-      throw new Error(error.message);
+      // Ensure we convert object errors to string
+      throw new Error(error.message || error.details || JSON.stringify(error));
   }
 };
 
@@ -141,7 +142,8 @@ export const updateBookInDatabase = async (id: string, updates: Partial<{
 
   if (error) {
     console.error("Database Update Error:", error);
-    throw new Error(error.message);
+    // Ensure we convert object errors to string
+    throw new Error(error.message || error.details || JSON.stringify(error));
   }
 };
 
@@ -154,7 +156,7 @@ export const deleteBookFromLibrary = async (bookId: string, fileUrl: string) => 
         .delete()
         .eq('id', bookId);
 
-    if (dbError) throw new Error("Error eliminando registro de la base de datos: " + dbError.message);
+    if (dbError) throw new Error("Error eliminando registro de la base de datos: " + (dbError.message || JSON.stringify(dbError)));
 
     // 2. Intentar eliminar del Storage (si es un archivo alojado en Supabase)
     // Comprobamos si la URL contiene la estructura de Supabase Storage
