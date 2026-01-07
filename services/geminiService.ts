@@ -2,15 +2,6 @@ import { GoogleGenAI } from "@google/genai";
 import { Message, Role, ExplanationMode, EducationLevel, Subject } from '../types';
 import { SYSTEM_INSTRUCTION_BASE } from '../constants';
 
-// We create the client dynamically to ensure we always use the latest API key if it changes (though here it's env based)
-const getClient = () => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    throw new Error("API Key not found");
-  }
-  return new GoogleGenAI({ apiKey });
-};
-
 interface GenerateParams {
   history: Message[];
   prompt: string;
@@ -27,7 +18,8 @@ export const sendMessageToGemini = async ({
   mode
 }: GenerateParams): Promise<string> => {
   try {
-    const ai = getClient();
+    // Initialize the client with the API key from the environment variable
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
     // Select model based on complexity. 
     // Math & High logic -> Pro Preview.
