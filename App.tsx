@@ -124,7 +124,7 @@ export default function App() {
       <div className="absolute top-0 left-0 w-full h-96 bg-gradient-to-b from-primary-50 to-transparent dark:from-slate-900 dark:to-transparent pointer-events-none z-0" />
       
       {/* Navbar - Modern Glass */}
-      <nav className="h-16 px-4 md:px-6 flex items-center justify-between shrink-0 z-20 relative glass border-b border-slate-200/50 dark:border-slate-800/50">
+      <nav className="h-14 md:h-16 px-4 md:px-6 flex items-center justify-between shrink-0 z-20 relative glass border-b border-slate-200/50 dark:border-slate-800/50">
         <div 
           className="flex items-center gap-2 cursor-pointer group"
           onClick={handleBackToDashboard}
@@ -132,7 +132,7 @@ export default function App() {
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary-600 to-violet-600 flex items-center justify-center text-white shadow-lg group-hover:scale-105 transition-transform duration-300">
             <IconBrain className="w-5 h-5" />
           </div>
-          <span className="font-bold text-xl tracking-tight text-slate-800 dark:text-white hidden md:block">
+          <span className="font-bold text-lg md:text-xl tracking-tight text-slate-800 dark:text-white hidden xs:block">
             Mentor<span className="text-primary-600 dark:text-primary-400">IA</span>
           </span>
         </div>
@@ -147,8 +147,8 @@ export default function App() {
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-800'
                 }`}
             >
+                <IconBrain className="w-4 h-4 md:hidden"/>
                 <span className="hidden md:inline">Inicio</span>
-                <span className="md:hidden"><IconBrain className="w-4 h-4"/></span>
             </button>
             <button
                 onClick={() => setCurrentView('library')}
@@ -158,7 +158,7 @@ export default function App() {
                     : 'text-slate-500 dark:text-slate-400 hover:text-slate-800'
                 }`}
             >
-                <IconLibrary className="w-4 h-4" />
+                <IconLibrary className="w-4 h-4 md:hidden" />
                 <span className="hidden md:inline">Biblioteca</span>
             </button>
         </div>
@@ -182,9 +182,9 @@ export default function App() {
         </div>
       </nav>
 
-      {/* Main Container */}
+      {/* Main Container - Mobile Optimized: No padding on mobile, Rounded on Desktop */}
       <main className="flex-1 flex flex-col relative z-10 w-full max-w-7xl mx-auto md:p-6 overflow-hidden">
-        <div className="flex-1 w-full h-full flex flex-col min-h-0 md:bg-white/50 md:dark:bg-slate-900/50 md:backdrop-blur-sm md:rounded-3xl md:border md:border-white/20 md:dark:border-white/5 md:shadow-2xl overflow-hidden">
+        <div className="flex-1 w-full h-full flex flex-col min-h-0 bg-white dark:bg-slate-900 md:bg-white/50 md:dark:bg-slate-900/50 md:backdrop-blur-sm md:rounded-3xl md:border md:border-white/20 md:dark:border-white/5 md:shadow-2xl overflow-hidden">
              {currentView === 'dashboard' && (
                <Dashboard 
                  userLevel={userLevel} 
