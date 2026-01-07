@@ -1,4 +1,5 @@
-// /// <reference types="vite/client" />
+// Reference to vite/client removed to fix "Cannot find type definition file"
+// Global process declaration removed to fix "Cannot redeclare block-scoped variable"
 
 interface ImportMetaEnv {
   readonly VITE_APP_TITLE: string
@@ -7,11 +8,4 @@ interface ImportMetaEnv {
 
 interface ImportMeta {
   readonly env: ImportMetaEnv
-}
-
-// Add process definition for compatibility with the app's use of process.env
-declare var process: {
-  env: {
-    [key: string]: string | undefined
-  }
 }
