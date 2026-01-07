@@ -304,25 +304,28 @@ export const Library: React.FC = () => {
   };
 
   const handleDeleteBook = async (book: Book) => {
-      if (!window.confirm(`¿Estás seguro de que quieres eliminar COMPLETAMENTE "${book.title}"?`)) {
+      if (!window.confirm(`¿Estás seguro de que quieres eliminar COMPLETAMENTE "${book.title}"? Esta acción borrará el registro y los archivos asociados.`)) {
           return;
       }
 
-      setIsLoading(true); // Show loading to indicate processing
+      setIsLoading(true); 
       try {
           await deleteBookFromLibrary(book.id, book.pdfUrl || '');
           
-          // CRITICAL FIX: Refresh from server to ensure it is really gone
-          // This prevents "ghost" books from reappearing on next update
-          await handleSearch(new Event('submit') as any);
+          // CRITICAL: Immediately remove from UI state to give instant feedback
+          // This prevents "flicker" while we wait for the fresh fetch
+          setBooks(prevBooks => prevBooks.filter(b => b.id !== book.id));
+          
+          // Then refresh from server to ensure sync
+          setTimeout(() => handleSearch(new Event('submit') as any), 500);
           
           alert('Libro eliminado correctamente de la nube.');
       } catch (error: any) {
           console.error("Delete Error:", error);
           const msg = error.message || JSON.stringify(error);
-          alert(`Error al eliminar: ${msg}`);
+          alert(`ERROR: ${msg}`);
           
-          // Refresh anyway in case state is desynced
+          // If error, force refresh to bring back the item if it wasn't deleted
           handleSearch(new Event('submit') as any);
       } finally {
           setIsLoading(false);

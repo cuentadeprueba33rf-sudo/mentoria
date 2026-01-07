@@ -148,8 +148,16 @@ export const updateBookInDatabase = async (id: string, updates: Partial<{
 };
 
 export const deleteBookFromLibrary = async (bookId: string, fileUrl: string) => {
+    if (!bookId) throw new Error("ID de libro inválido.");
+
     console.log("Iniciando eliminación completa para ID:", bookId);
     
+    // 0. Verificar sesión antes de borrar para evitar errores de RLS silenciosos
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session) {
+        console.warn("No se detectó sesión activa. Intentando operación de todos modos (puede fallar por RLS).");
+    }
+
     // 1. Eliminar de la base de datos (Fuente de Verdad)
     // IMPORTANTE: Agregamos .select() para confirmar que realmente se borró algo
     const { data, error: dbError } = await supabase
@@ -159,12 +167,14 @@ export const deleteBookFromLibrary = async (bookId: string, fileUrl: string) => 
         .select();
 
     if (dbError) {
+        console.error("Error DB Delete:", dbError);
         throw new Error("Error eliminando de la base de datos: " + (dbError.message || JSON.stringify(dbError)));
     }
 
     // Verificación crucial: Si data está vacío, la DB no borró nada (probablemente permisos RLS)
     if (!data || data.length === 0) {
-        throw new Error("El servidor no confirmó la eliminación. Es posible que no tengas permisos de administrador o el libro ya haya sido borrado.");
+        console.error("Delete retornó 0 filas. Posible error de permisos o ID incorrecto.");
+        throw new Error("NO SE PUDO ELIMINAR: El servidor denegó la operación. Verifica que tengas sesión de administrador activa y recarga la página.");
     }
 
     console.log("Registro eliminado exitosamente de base de datos:", data);
