@@ -49,22 +49,18 @@ export const supabase = supabaseInstance;
 
 export const uploadBookFile = async (file: File): Promise<string | null> => {
   try {
-    // Check file size - Standard Supabase Free Tier limit is 50MB per file.
-    // We check this on client side to avoid waiting for upload just to fail.
     const MAX_SIZE_MB = 50; 
     if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-      throw new Error(`El archivo supera el límite de ${MAX_SIZE_MB}MB (Estándar de Supabase).`);
+      throw new Error(`El archivo supera el límite de ${MAX_SIZE_MB}MB.`);
     }
 
-    // 1. Sanitizar nombre de archivo agresivamente
     const fileExt = file.name.split('.').pop();
     const safeName = file.name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 15);
     const fileName = `${Date.now()}_${safeName}.${fileExt}`;
     const filePath = fileName;
 
-    console.log(`Intentando subir: ${filePath} (${(file.size / 1024 / 1024).toFixed(2)} MB) al bucket 'books'...`);
+    console.log(`Subiendo: ${filePath}...`);
 
-    // 2. Subir al bucket 'books'
     const { data, error: uploadError } = await supabase.storage
       .from('books')
       .upload(filePath, file, {
@@ -73,37 +69,19 @@ export const uploadBookFile = async (file: File): Promise<string | null> => {
       });
 
     if (uploadError) {
-        // Handle specific server errors
-        if (uploadError.message.includes('The object exceeded the maximum allowed size')) {
-             throw new Error("El archivo es demasiado grande para el servidor (Límite 50MB).");
-        }
         if (uploadError.message.includes('new row violates row-level security policy')) {
              throw new Error("Permiso denegado: No tienes permisos de administrador.");
         }
-        
-        console.error('Error detallado de Supabase Storage:', uploadError);
-        throw new Error(uploadError.message || JSON.stringify(uploadError));
+        throw new Error(uploadError.message);
     }
 
-    if (!data) {
-        throw new Error("No se recibieron datos de confirmación de subida.");
-    }
+    if (!data) throw new Error("No se recibieron datos de confirmación.");
 
-    // 3. Obtener URL pública
     const { data: urlData } = supabase.storage.from('books').getPublicUrl(filePath);
-    
-    if (!urlData || !urlData.publicUrl) {
-        throw new Error("No se pudo generar la URL pública.");
-    }
-
-    console.log("Archivo subido exitosamente:", urlData.publicUrl);
     return urlData.publicUrl;
 
   } catch (error: any) {
-    // Only log unknown errors to avoid noise
-    if (!error.message.includes('El archivo supera') && !error.message.includes('demasiado grande')) {
-        console.error('Upload Service Error:', error);
-    }
+    console.error('Upload Service Error:', error);
     throw error;
   }
 };
@@ -113,99 +91,51 @@ export const addBookToDatabase = async (bookData: {
   author: string;
   category: string;
   file_url: string;
-  cover_url?: string; // Opcional
+  cover_url?: string;
 }) => {
-  console.log("Guardando metadatos en base de datos...", bookData);
-  const { error } = await supabase
-    .from('library_books')
-    .insert([bookData]);
-  
-  if (error) {
-      console.error("Database Insert Error:", error);
-      // Ensure we convert object errors to string
-      throw new Error(error.message || error.details || JSON.stringify(error));
-  }
+  const { error } = await supabase.from('library_books').insert([bookData]);
+  if (error) throw new Error(error.message);
 };
 
-export const updateBookInDatabase = async (id: string, updates: Partial<{
-  title: string;
-  author: string;
-  category: string;
-  cover_url: string;
-  file_url: string;
-}>) => {
-  console.log("Actualizando libro:", id, updates);
-  const { error } = await supabase
-    .from('library_books')
-    .update(updates)
-    .eq('id', id);
-
-  if (error) {
-    console.error("Database Update Error:", error);
-    // Ensure we convert object errors to string
-    throw new Error(error.message || error.details || JSON.stringify(error));
-  }
+export const updateBookInDatabase = async (id: string, updates: any) => {
+  const { error } = await supabase.from('library_books').update(updates).eq('id', id);
+  if (error) throw new Error(error.message);
 };
 
 export const deleteBookFromLibrary = async (bookId: string, fileUrl: string) => {
-    if (!bookId) throw new Error("ID de libro inválido.");
+    if (!bookId) throw new Error("ID inválido.");
 
-    console.log("Iniciando eliminación completa para ID:", bookId);
+    console.log("Eliminando ID:", bookId);
     
-    // 0. Verificar sesión antes de borrar para evitar errores de RLS silenciosos
+    // 0. Verificar sesión (opcional para debug)
     const { data: sessionData } = await supabase.auth.getSession();
-    if (!sessionData.session) {
-        console.warn("No se detectó sesión activa. Intentando operación de todos modos (puede fallar por RLS).");
-    }
+    if (!sessionData.session) console.warn("Sin sesión activa.");
 
-    // 1. Eliminar de la base de datos (Fuente de Verdad)
-    // IMPORTANTE: Agregamos .select() para confirmar que realmente se borró algo
+    // 1. ELIMINACIÓN CON VERIFICACIÓN (.select())
+    // Esto es crucial: si RLS bloquea el borrado, data será vacío
     const { data, error: dbError } = await supabase
         .from('library_books')
         .delete()
         .eq('id', bookId)
-        .select();
+        .select(); // <--- ESTO ES LO QUE FALTABA
 
-    if (dbError) {
-        console.error("Error DB Delete:", dbError);
-        throw new Error("Error eliminando de la base de datos: " + (dbError.message || JSON.stringify(dbError)));
-    }
+    if (dbError) throw new Error("Error DB: " + dbError.message);
 
-    // Verificación crucial: Si data está vacío, la DB no borró nada (probablemente permisos RLS)
+    // Si data está vacío, significa que NO se borró nada (probablemente permisos)
     if (!data || data.length === 0) {
-        console.error("Delete retornó 0 filas. Posible error de permisos o ID incorrecto.");
-        throw new Error("NO SE PUDO ELIMINAR: El servidor denegó la operación. Verifica que tengas sesión de administrador activa y recarga la página.");
+        throw new Error("NO SE PUDO ELIMINAR: Permiso denegado por el servidor o el libro ya no existe.");
     }
 
-    console.log("Registro eliminado exitosamente de base de datos:", data);
-
-    // 2. Intentar eliminar del Storage (si es un archivo alojado en Supabase)
-    // Comprobamos si la URL es válida y pertenece a nuestro storage
+    // 2. Eliminar archivo físico
     if (fileUrl && fileUrl.includes('/storage/v1/object/public/books/')) {
         try {
-            // Extraer el nombre del archivo de la URL
-            // URL Típica: https://.../storage/v1/object/public/books/filename.pdf
             const parts = fileUrl.split('/books/');
             const fileName = parts.length > 1 ? parts.pop() : null;
-            
             if (fileName) {
-                // Decodificar el nombre por si tiene espacios o caracteres especiales
-                const decodedFileName = decodeURIComponent(fileName);
-                console.log("Intentando eliminar archivo físico del bucket:", decodedFileName);
-                
-                const { error: storageError } = await supabase.storage
-                    .from('books')
-                    .remove([decodedFileName]);
-                
-                if (storageError) {
-                    // Solo es una advertencia, no detiene el flujo porque la DB ya se limpió
-                    console.warn("Advertencia: No se pudo eliminar el archivo físico.", storageError);
-                } else {
-                    console.log("Archivo físico eliminado correctamente.");
-                }
+                await supabase.storage.from('books').remove([decodeURIComponent(fileName)]);
             }
         } catch (e) {
-            console.warn("Error procesando eliminación de archivo (no crítico):", e);
+            console.warn("No se pudo borrar el archivo físico:", e);
         }
     }
 };
