@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SUBJECTS } from '../constants';
 import { Subject, SubjectCategory, EducationLevel } from '../types';
-import { IconGraduationCap, IconBook, IconTarget, IconWand, IconSearch } from './Icons';
+import { IconGraduationCap, IconBook, IconTarget, IconWand, IconSearch, IconBrain } from './Icons';
 
 interface DashboardProps {
   userLevel: EducationLevel;
@@ -18,6 +18,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<SubjectCategory | 'Todos'>('Todos');
   const [searchTerm, setSearchTerm] = useState('');
+  const [greeting, setGreeting] = useState('Buenos días');
+
+  useEffect(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) setGreeting('Buenos días');
+    else if (hour < 18) setGreeting('Buenas tardes');
+    else setGreeting('Buenas noches');
+  }, []);
 
   const availableSubjects = SUBJECTS.filter(s => s.levels.includes(userLevel));
   const displayedSubjects = availableSubjects.filter(s => {
@@ -30,118 +38,165 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const categories = Object.values(SubjectCategory);
 
   return (
-    <div className="flex-1 overflow-y-auto pb-32 md:pb-12 scroll-smooth bg-slate-50/50 dark:bg-slate-950/50">
-      <div className="max-w-7xl mx-auto px-4 md:px-8 pt-8">
+    <div className="flex-1 overflow-y-auto pb-32 md:pb-12 scroll-smooth bg-slate-50/50 dark:bg-slate-950/50 relative">
+      {/* Background Ambience */}
+      <div className="fixed top-0 left-0 w-full h-[500px] bg-gradient-to-b from-blue-50/80 to-transparent dark:from-blue-900/10 dark:to-transparent pointer-events-none" />
+
+      <div className="max-w-7xl mx-auto px-4 md:px-8 pt-8 relative z-10">
         
-        {/* --- HERO SECTION --- */}
-        <div className="flex flex-col md:flex-row justify-between items-end mb-10 gap-6 animate-fade-in">
-            <div className="relative z-10">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 text-blue-600 dark:text-blue-300 text-xs font-bold uppercase tracking-wider mb-3">
-                    ✨ Tu Tutor Inteligente
-                </div>
-                <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">
-                    Aprende <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-violet-600 dark:from-primary-400 dark:to-violet-400">sin límites.</span>
+        {/* --- HEADER SECTION --- */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-6 animate-fade-in">
+            <div>
+                <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-2">
+                    {greeting}.
                 </h1>
-                <p className="mt-3 text-slate-500 dark:text-slate-400 text-lg max-w-lg leading-relaxed">
-                    Selecciona una herramienta o materia para comenzar.
+                <p className="text-lg text-slate-500 dark:text-slate-400 font-medium">
+                    ¿Qué quieres aprender hoy en nivel <span className="text-primary-600 dark:text-primary-400 font-bold">{userLevel}</span>?
                 </p>
             </div>
 
-            {/* Aesthetic Level Switcher */}
-            <div className="bg-white dark:bg-slate-900 p-1.5 rounded-full shadow-lg shadow-slate-200/50 dark:shadow-black/20 border border-slate-100 dark:border-slate-800 flex relative w-full md:w-auto min-w-[260px]">
+            {/* Level Switcher - Glass Capsule */}
+            <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-1.5 rounded-full border border-slate-200 dark:border-slate-700 flex shadow-sm">
                 <button
                     onClick={() => setUserLevel(EducationLevel.BACHILLER)}
-                    className={`flex-1 flex items-center justify-center gap-2 px-6 py-2.5 rounded-full text-sm font-bold transition-all duration-300 relative z-10 ${
+                    className={`flex items-center gap-2 px-5 py-2 rounded-full text-sm font-bold transition-all duration-300 ${
                     userLevel === EducationLevel.BACHILLER
-                        ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-md transform scale-100'
-                        : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                        ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-md'
+                        : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
                     }`}
                 >
                     <IconGraduationCap className="w-4 h-4" />
-                    Colegio
+                    <span className="hidden sm:inline">Colegio</span>
                 </button>
                 <button
                     onClick={() => setUserLevel(EducationLevel.UNIVERSIDAD)}
-                    className={`flex-1 flex items-center justify-center gap-2 px-6 py-2.5 rounded-full text-sm font-bold transition-all duration-300 relative z-10 ${
+                    className={`flex items-center gap-2 px-5 py-2 rounded-full text-sm font-bold transition-all duration-300 ${
                     userLevel === EducationLevel.UNIVERSIDAD
-                        ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-md transform scale-100'
-                        : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+                        ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-md'
+                        : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
                     }`}
                 >
                     <IconBook className="w-4 h-4" />
-                    Universidad
+                    <span className="hidden sm:inline">Universidad</span>
                 </button>
             </div>
         </div>
 
-        {/* --- QUICK ACTIONS WIDGETS (BENTO STYLE) --- */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10 animate-slide-up" style={{ animationDelay: '0.1s' }}>
-            {[
-            { id: 'solve', label: 'Resolver', sub: 'Paso a paso', icon: IconTarget, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20', border: 'border-blue-100 dark:border-blue-800' },
-            { id: 'explain', label: 'Explicar', sub: 'Conceptos', icon: IconBook, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/20', border: 'border-emerald-100 dark:border-emerald-800' },
-            { id: 'exam', label: 'Practicar', sub: 'Modo Examen', icon: IconGraduationCap, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-900/20', border: 'border-amber-100 dark:border-amber-800' },
-            { id: 'create', label: 'Crear', sub: 'Ejercicios', icon: IconWand, color: 'text-purple-600', bg: 'bg-purple-50 dark:bg-purple-900/20', border: 'border-purple-100 dark:border-purple-800' },
-            ].map((action) => (
+        {/* --- SEARCH BAR (HERO) --- */}
+        <div className="relative max-w-2xl mb-12 group animate-slide-up">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <IconSearch className="h-6 w-6 text-slate-400 group-focus-within:text-primary-500 transition-colors" />
+            </div>
+            <input
+                type="text"
+                className="block w-full pl-12 pr-4 py-4 rounded-2xl bg-white dark:bg-slate-900 border-2 border-slate-100 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-primary-500/50 focus:ring-4 focus:ring-primary-500/10 transition-all text-lg shadow-sm group-hover:shadow-md"
+                placeholder="Buscar materias, temas o conceptos..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+            />
+        </div>
+
+        {/* --- QUICK ACTIONS (WIDGETS) --- */}
+        <div className="mb-10">
+            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 px-1">Herramientas Rápidas</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+                {[
+                { id: 'solve', label: 'Resolver', sub: 'Paso a paso', icon: IconTarget, gradient: 'from-blue-500 to-cyan-500' },
+                { id: 'explain', label: 'Explicar', sub: 'Teoría clara', icon: IconBrain, gradient: 'from-emerald-500 to-teal-500' },
+                { id: 'exam', label: 'Practicar', sub: 'Simular Examen', icon: IconGraduationCap, gradient: 'from-amber-500 to-orange-500' },
+                { id: 'create', label: 'Crear', sub: 'Ejercicios', icon: IconWand, gradient: 'from-purple-500 to-pink-500' },
+                ].map((action) => (
+                <button
+                    key={action.id}
+                    onClick={() => onQuickAction(action.id)}
+                    className="relative overflow-hidden group p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 hover:border-transparent text-left transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+                >
+                    <div className={`absolute inset-0 bg-gradient-to-br ${action.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-300`} />
+                    <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${action.gradient} flex items-center justify-center text-white mb-3 shadow-lg group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300`}>
+                        <action.icon className="w-6 h-6" />
+                    </div>
+                    <h3 className="font-bold text-lg text-slate-900 dark:text-white">{action.label}</h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">{action.sub}</p>
+                </button>
+                ))}
+            </div>
+        </div>
+
+        {/* --- CATEGORY TABS --- */}
+        <div className="flex overflow-x-auto gap-2 mb-6 pb-2 no-scrollbar mask-gradient-right sticky top-0 z-20 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-xl py-2 -mx-4 px-4 md:mx-0 md:px-0 md:bg-transparent md:backdrop-filter-none">
             <button
-                key={action.id}
-                onClick={() => onQuickAction(action.id)}
-                className={`
-                    relative group flex flex-col items-start justify-between p-5 h-32 md:h-36
-                    rounded-3xl border transition-all duration-300
-                    bg-white dark:bg-slate-900/80 backdrop-blur-sm
-                    hover:shadow-xl hover:-translate-y-1 active:scale-95
-                    ${action.border}
-                `}
+                onClick={() => setActiveTab('Todos')}
+                className={`whitespace-nowrap px-6 py-2.5 rounded-full text-sm font-bold transition-all duration-200 border ${
+                    activeTab === 'Todos'
+                    ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 border-slate-900 dark:border-white shadow-lg transform scale-105'
+                    : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                }`}
             >
-                <div className={`w-10 h-10 rounded-2xl ${action.bg} ${action.color} flex items-center justify-center mb-2 group-hover:scale-110 transition-transform duration-300`}>
-                    <action.icon className="w-5 h-5" />
-                </div>
-                <div>
-                    <h3 className="font-bold text-lg text-slate-900 dark:text-white leading-tight">{action.label}</h3>
-                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mt-0.5">{action.sub}</p>
-                </div>
-                <div className={`absolute top-4 right-4 w-12 h-12 rounded-full ${action.bg} blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none`} />
+                Todas
             </button>
+            {categories.map((cat) => (
+                <button
+                    key={cat}
+                    onClick={() => setActiveTab(cat)}
+                    className={`whitespace-nowrap px-6 py-2.5 rounded-full text-sm font-bold transition-all duration-200 border ${
+                        activeTab === cat
+                        ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 border-slate-900 dark:border-white shadow-lg transform scale-105'
+                        : 'bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                    }`}
+                >
+                    {cat}
+                </button>
             ))}
         </div>
 
-        {/* --- FILTERS & SEARCH --- */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6 sticky top-0 z-20 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-xl py-4 -mx-4 px-4 md:mx-0 md:px-0">
-            <div className="flex overflow-x-auto gap-2 no-scrollbar w-full md:w-auto mask-gradient-right">
-                <button onClick={() => setActiveTab('Todos')} className={`whitespace-nowrap px-5 py-2 rounded-full text-sm font-bold transition-all border ${activeTab === 'Todos' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 border-slate-900 dark:border-white shadow-md' : 'bg-white dark:bg-slate-900 text-slate-500 border-slate-200 dark:border-slate-800'}`}>Todas</button>
-                {categories.map((cat) => (
-                    <button key={cat} onClick={() => setActiveTab(cat)} className={`whitespace-nowrap px-5 py-2 rounded-full text-sm font-bold transition-all border ${activeTab === cat ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 border-slate-900 dark:border-white shadow-md' : 'bg-white dark:bg-slate-900 text-slate-500 border-slate-200 dark:border-slate-800'}`}>{cat}</button>
-                ))}
-            </div>
-
-            <div className="relative w-full md:w-64 shrink-0">
-                <input type="text" placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 focus:border-primary-500 outline-none transition-all text-sm font-medium" />
-                <IconSearch className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            </div>
-        </div>
-
         {/* --- SUBJECTS GRID --- */}
-        <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6 animate-slide-up" style={{ animationDelay: '0.2s' }}>
+        <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-slide-up" style={{ animationDelay: '0.2s' }}>
             {displayedSubjects.map((subject) => (
                 <button
                     key={subject.id}
                     onClick={() => onSelectSubject(subject)}
-                    className="group relative flex flex-col p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 text-left h-full overflow-hidden"
+                    className="group relative flex flex-col p-6 bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-2xl hover:shadow-slate-200/50 dark:hover:shadow-black/30 hover:-translate-y-1.5 transition-all duration-300 text-left h-full overflow-hidden"
                 >
-                    <div className={`absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r ${subject.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
-                    <div className="flex items-start justify-between mb-4">
-                        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl bg-gradient-to-br ${subject.gradient} text-white shadow-lg shadow-primary-500/10 group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}>
+                    {/* Hover Gradient Overlay */}
+                    <div className={`absolute inset-0 bg-gradient-to-br ${subject.gradient} opacity-0 group-hover:opacity-[0.03] transition-opacity duration-300`} />
+                    
+                    {/* Top Decorative Line */}
+                    <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r ${subject.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
+
+                    <div className="flex items-start justify-between mb-5 relative z-10">
+                        <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-3xl bg-gradient-to-br ${subject.gradient} text-white shadow-lg group-hover:scale-110 group-hover:rotate-6 transition-all duration-300 ring-4 ring-white dark:ring-slate-900`}>
                             {subject.icon}
                         </div>
+                        <div className="w-8 h-8 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-300 group-hover:text-primary-500 group-hover:bg-primary-50 dark:group-hover:bg-primary-900/20 transition-colors">
+                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                        </div>
                     </div>
-                    <div className="mt-2">
-                        <span className="inline-block text-[10px] font-extrabold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1.5">{subject.category}</span>
-                        <h4 className="font-bold text-xl text-slate-900 dark:text-white mb-2 leading-tight group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-slate-900 group-hover:to-slate-600 dark:group-hover:from-white dark:group-hover:to-slate-300 transition-all">{subject.name}</h4>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed font-medium">{subject.description}</p>
+
+                    <div className="mt-auto relative z-10">
+                        <span className="inline-block px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
+                            {subject.category}
+                        </span>
+                        <h4 className="font-extrabold text-xl text-slate-900 dark:text-white mb-2 leading-tight group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-slate-900 group-hover:to-slate-600 dark:group-hover:from-white dark:group-hover:to-slate-300 transition-all">
+                            {subject.name}
+                        </h4>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed font-medium">
+                            {subject.description}
+                        </p>
                     </div>
                 </button>
             ))}
         </div>
+        
+        {displayedSubjects.length === 0 && (
+             <div className="py-20 text-center">
+                 <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-slate-100 dark:bg-slate-800 mb-4 text-4xl">
+                     🔍
+                 </div>
+                 <h3 className="text-xl font-bold text-slate-900 dark:text-white">No se encontraron materias</h3>
+                 <p className="text-slate-500 mt-2">Prueba con otro término de búsqueda o categoría.</p>
+                 <button onClick={() => {setSearchTerm(''); setActiveTab('Todos')}} className="mt-4 text-primary-600 font-bold hover:underline">Limpiar filtros</button>
+             </div>
+        )}
       </div>
     </div>
   );

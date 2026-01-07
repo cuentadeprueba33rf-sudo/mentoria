@@ -26,6 +26,7 @@ const createMockClient = () => {
     },
     auth: {
       getSession: () => Promise.resolve({ data: { session: null }, error: null }),
+      getUser: () => Promise.resolve({ data: { user: null }, error: null }),
       signInWithPassword: () => Promise.resolve({ data: {}, error: null }),
       signOut: () => Promise.resolve({ error: null })
     }
@@ -105,28 +106,39 @@ export const updateBookInDatabase = async (id: string, updates: any) => {
 export const deleteBookFromLibrary = async (bookId: string, fileUrl: string) => {
     if (!bookId) throw new Error("ID inválido.");
 
-    console.log("Eliminando ID:", bookId);
+    // DIAGNÓSTICO DE USUARIO
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
     
-    // 0. Verificar sesión (opcional para debug)
-    const { data: sessionData } = await supabase.auth.getSession();
-    if (!sessionData.session) console.warn("Sin sesión activa.");
+    if (authError || !user) {
+        console.error("Error Auth al borrar:", authError);
+        throw new Error("No hay sesión activa o ha expirado. Recarga la página y logueate de nuevo.");
+    }
+
+    console.log(`Intentando eliminar libro ${bookId} con usuario:`, user.id, user.email);
 
     // 1. ELIMINACIÓN CON VERIFICACIÓN (.select())
-    // Esto es crucial: si RLS bloquea el borrado, data será vacío
+    // select() fuerza a Supabase a devolver lo que borró. Si RLS lo bloquea, devuelve [].
     const { data, error: dbError } = await supabase
         .from('library_books')
         .delete()
         .eq('id', bookId)
-        .select(); // <--- ESTO ES LO QUE FALTABA
+        .select();
 
-    if (dbError) throw new Error("Error DB: " + dbError.message);
-
-    // Si data está vacío, significa que NO se borró nada (probablemente permisos)
-    if (!data || data.length === 0) {
-        throw new Error("NO SE PUDO ELIMINAR: Permiso denegado por el servidor o el libro ya no existe.");
+    if (dbError) {
+        console.error("Error SQL:", dbError);
+        throw new Error("Error DB: " + dbError.message);
     }
 
-    // 2. Eliminar archivo físico
+    // VERIFICACIÓN CRÍTICA DE RLS
+    if (!data || data.length === 0) {
+        console.error("Supabase devolvió 0 filas afectadas. RLS está bloqueando la acción.");
+        console.error("Tu UUID de usuario es:", user.id);
+        throw new Error(`NO SE PUDO ELIMINAR. Supabase bloqueó la acción. Verifica las políticas RLS. Tu ID es: ${user.id}`);
+    }
+
+    console.log("Eliminación exitosa en BD:", data);
+
+    // 2. Eliminar archivo físico (si existe)
     if (fileUrl && fileUrl.includes('/storage/v1/object/public/books/')) {
         try {
             const parts = fileUrl.split('/books/');
@@ -135,7 +147,7 @@ export const deleteBookFromLibrary = async (bookId: string, fileUrl: string) => 
                 await supabase.storage.from('books').remove([decodeURIComponent(fileName)]);
             }
         } catch (e) {
-            console.warn("No se pudo borrar el archivo físico:", e);
+            console.warn("No se pudo borrar el archivo físico (no crítico):", e);
         }
     }
 };
