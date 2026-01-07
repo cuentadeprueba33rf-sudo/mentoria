@@ -148,37 +148,47 @@ export const updateBookInDatabase = async (id: string, updates: Partial<{
 };
 
 export const deleteBookFromLibrary = async (bookId: string, fileUrl: string) => {
-    console.log("Eliminando libro:", bookId);
+    console.log("Iniciando eliminación completa para ID:", bookId);
     
-    // 1. Eliminar de la base de datos
+    // 1. Eliminar de la base de datos (Fuente de Verdad)
     const { error: dbError } = await supabase
         .from('library_books')
         .delete()
         .eq('id', bookId);
 
-    if (dbError) throw new Error("Error eliminando registro de la base de datos: " + (dbError.message || JSON.stringify(dbError)));
+    if (dbError) {
+        throw new Error("Error eliminando de la base de datos: " + (dbError.message || JSON.stringify(dbError)));
+    }
+
+    console.log("Registro eliminado de base de datos.");
 
     // 2. Intentar eliminar del Storage (si es un archivo alojado en Supabase)
-    // Comprobamos si la URL contiene la estructura de Supabase Storage
+    // Comprobamos si la URL es válida y pertenece a nuestro storage
     if (fileUrl && fileUrl.includes('/storage/v1/object/public/books/')) {
         try {
             // Extraer el nombre del archivo de la URL
             // URL Típica: https://.../storage/v1/object/public/books/filename.pdf
-            const fileName = fileUrl.split('/books/').pop();
+            const parts = fileUrl.split('/books/');
+            const fileName = parts.length > 1 ? parts.pop() : null;
             
             if (fileName) {
-                console.log("Intentando eliminar archivo físico:", fileName);
+                // Decodificar el nombre por si tiene espacios o caracteres especiales
+                const decodedFileName = decodeURIComponent(fileName);
+                console.log("Intentando eliminar archivo físico del bucket:", decodedFileName);
+                
                 const { error: storageError } = await supabase.storage
                     .from('books')
-                    .remove([fileName]);
+                    .remove([decodedFileName]);
                 
                 if (storageError) {
-                    console.warn("No se pudo eliminar el archivo físico (puede que ya no exista):", storageError);
+                    // Solo es una advertencia, no detiene el flujo porque la DB ya se limpió
+                    console.warn("Advertencia: No se pudo eliminar el archivo físico.", storageError);
+                } else {
+                    console.log("Archivo físico eliminado correctamente.");
                 }
             }
         } catch (e) {
-            console.warn("Error procesando eliminación de archivo:", e);
-            // No lanzamos error aquí porque lo importante es que el libro ya no aparece en la DB
+            console.warn("Error procesando eliminación de archivo (no crítico):", e);
         }
     }
 };

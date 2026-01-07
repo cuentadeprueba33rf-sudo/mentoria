@@ -83,7 +83,6 @@ const fetchRecommendedBooks = async (): Promise<Book[]> => {
             .order('created_at', { ascending: false });
 
         if (error) {
-            // Logueamos el error de forma legible
             console.error("Supabase Fetch Error:", error.message, error.details || '');
             throw error;
         }
@@ -101,29 +100,32 @@ const fetchRecommendedBooks = async (): Promise<Book[]> => {
             pdfUrl: item.file_url
         }));
     } catch (e: any) {
-        // Evitamos el [object Object] logueando el mensaje o stringificando
         const errorMsg = e.message || JSON.stringify(e);
         console.error("Error cargando libros recomendados:", errorMsg);
         return [];
     }
 }
 
-// --- GOOGLE DRIVE LINK TRANSFORMER ---
-const transformDriveLink = (url: string): string => {
-    if (!url.includes('drive.google.com')) return url;
+// --- GOOGLE DRIVE HELPERS ---
 
-    // Regex para capturar ID en formatos comunes:
-    // 1. /file/d/ID_AQUI/
-    // 2. id=ID_AQUI (común en enlaces antiguos o de exportación)
-    // 3. open?id=ID_AQUI
-    const idMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || 
-                    url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-    
+// Helper to clean Drive PDF links for embedding
+const transformDriveLink = (url: string): string => {
+    if (!url || !url.includes('drive.google.com')) return url;
+    const idMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
     if (idMatch && idMatch[1]) {
-        // Retornamos siempre la versión /preview que permite el embed sin headers restrictivos
         return `https://drive.google.com/file/d/${idMatch[1]}/preview`;
     }
-    
+    return url;
+}
+
+// Helper to convert Drive links to DIRECT IMAGES for covers
+const transformDriveCoverImage = (url: string): string => {
+    if (!url || !url.includes('drive.google.com')) return url;
+    const idMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    if (idMatch && idMatch[1]) {
+        // Use Google's thumbnail API to get a high-res image from the ID
+        return `https://drive.google.com/thumbnail?id=${idMatch[1]}&sz=w800`;
+    }
     return url;
 }
 
@@ -243,6 +245,9 @@ export const Library: React.FC = () => {
                finalFileUrl = transformDriveLink(externalUrl);
           }
 
+          // FIX: Transform Cover URL if it is from Google Drive
+          const finalCoverUrl = transformDriveCoverImage(uploadCover);
+
           if (editingBook) {
               // UPDATE MODE
                console.log("Actualizando libro...", editingBook.id);
@@ -250,7 +255,7 @@ export const Library: React.FC = () => {
                    title: uploadTitle,
                    author: uploadAuthor,
                    category: uploadCategory,
-                   cover_url: uploadCover,
+                   cover_url: finalCoverUrl, // Use transformed URL
                    file_url: finalFileUrl
                });
                alert('¡Libro actualizado correctamente!');
@@ -263,7 +268,7 @@ export const Library: React.FC = () => {
                   author: uploadAuthor,
                   category: uploadCategory,
                   file_url: finalFileUrl,
-                  cover_url: uploadCover
+                  cover_url: finalCoverUrl // Use transformed URL
               });
               
               // Reset Form
@@ -284,13 +289,11 @@ export const Library: React.FC = () => {
           let msg = 'Error desconocido.';
           const errorString = error?.message || error?.toString() || '';
 
-          // Handle specific "Failed to fetch" which often means project paused or CORS
           if (errorString.includes('Failed to fetch')) {
               msg = '⚠️ Error de conexión: No se pudo conectar con el servidor de Supabase.\n\nPosibles causas:\n1. El proyecto de Supabase está "Pausado" (Común en planes gratuitos tras inactividad).\n2. Problemas de conexión a internet.\n3. Bloqueador de anuncios interfiriendo.';
           } else if (error.message) {
               msg = `Error: ${error.message}`;
           } else {
-              // Fallback to avoid [object Object]
               msg = `Error detallado: ${JSON.stringify(error)}`;
           }
           
@@ -301,19 +304,28 @@ export const Library: React.FC = () => {
   };
 
   const handleDeleteBook = async (book: Book) => {
-      if (!window.confirm(`¿Estás seguro de que quieres eliminar "${book.title}"? Esta acción no se puede deshacer.`)) {
+      if (!window.confirm(`¿Estás seguro de que quieres eliminar COMPLETAMENTE "${book.title}"?`)) {
           return;
       }
 
+      setIsLoading(true); // Show loading to indicate processing
       try {
           await deleteBookFromLibrary(book.id, book.pdfUrl || '');
-          // Remove from local state immediately
-          setBooks(prev => prev.filter(b => b.id !== book.id));
-          alert('Libro eliminado correctamente.');
+          
+          // CRITICAL FIX: Refresh from server to ensure it is really gone
+          // This prevents "ghost" books from reappearing on next update
+          await handleSearch(new Event('submit') as any);
+          
+          alert('Libro eliminado correctamente de la nube.');
       } catch (error: any) {
           console.error("Delete Error:", error);
           const msg = error.message || JSON.stringify(error);
           alert(`Error al eliminar: ${msg}`);
+          
+          // Refresh anyway in case state is desynced
+          handleSearch(new Event('submit') as any);
+      } finally {
+          setIsLoading(false);
       }
   };
 
