@@ -14,7 +14,7 @@ const createMockClient = () => {
         order: (_col: string, _opts?: any) => Promise.resolve({ data: [], error: null })
       }),
       insert: (_data: any) => Promise.resolve({ data: null, error: null }),
-      delete: () => ({ eq: () => Promise.resolve({ error: null }) }),
+      delete: () => ({ eq: () => ({ select: () => Promise.resolve({ data: [], error: null }) }) }),
       update: (_data: any) => ({ eq: () => Promise.resolve({ error: null }) })
     }),
     storage: {
@@ -151,16 +151,23 @@ export const deleteBookFromLibrary = async (bookId: string, fileUrl: string) => 
     console.log("Iniciando eliminación completa para ID:", bookId);
     
     // 1. Eliminar de la base de datos (Fuente de Verdad)
-    const { error: dbError } = await supabase
+    // IMPORTANTE: Agregamos .select() para confirmar que realmente se borró algo
+    const { data, error: dbError } = await supabase
         .from('library_books')
         .delete()
-        .eq('id', bookId);
+        .eq('id', bookId)
+        .select();
 
     if (dbError) {
         throw new Error("Error eliminando de la base de datos: " + (dbError.message || JSON.stringify(dbError)));
     }
 
-    console.log("Registro eliminado de base de datos.");
+    // Verificación crucial: Si data está vacío, la DB no borró nada (probablemente permisos RLS)
+    if (!data || data.length === 0) {
+        throw new Error("El servidor no confirmó la eliminación. Es posible que no tengas permisos de administrador o el libro ya haya sido borrado.");
+    }
+
+    console.log("Registro eliminado exitosamente de base de datos:", data);
 
     // 2. Intentar eliminar del Storage (si es un archivo alojado en Supabase)
     // Comprobamos si la URL es válida y pertenece a nuestro storage
